@@ -8,8 +8,8 @@ from flask import Flask
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import CommandStart
 
-# ===== НАСТРОЙКИ =====
-BOT_TOKEN = "9108839045:AAEvdIO-ip7d-WjZEBotkRrlaXnKqVv-pmY"
+# ===== НАСТРОЙКИ (Берем из настроек сервера, чтобы GitHub не ругался) =====
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "9108839045:AAEvdIO-ip7d-WjZEBotkRrlaXnKqVv-pmY") # Впиши сюда НОВЫЙ токен локально, если будешь тестить, на Render его не будет видно
 PIXEL_ID = "2548037185690331"
 CAPI_TOKEN = "EAAZA8siXlGj4BTHCuThnWMuL0uJZBPZCviAZAI6HuLdDJQo46qevFfEpVwywqbFe2cvAkYZAvvBjFLvJwRHHQdweKw6r86bGgWe9rcRbYQpiLez0SPS3ainjb9dFGzSlcHxLXVcZADK0FzAFPZA1nfTDPwcWIcOfZBZBcOoeZBAYuT5WEAMPL3FkSLjNZBMvI8usgPCgQZDZD"
 CHANNEL_ID = -1004451542132
@@ -19,7 +19,6 @@ logging.basicConfig(level=logging.INFO)
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-# --- Твой код бота (без изменений) ---
 def send_subscribe_event(user_id: int):
     url = f"https://graph.facebook.com/v19.0/{PIXEL_ID}/events"
     payload = {
@@ -65,8 +64,6 @@ def run_bot():
     asyncio.run(dp.start_polling(bot))
 
 if __name__ == "__main__":
-    # Запускаем бота в отдельном потоке
     threading.Thread(target=run_bot, daemon=True).start()
-    # Запускаем веб-сервер на порту, который даст Render
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
