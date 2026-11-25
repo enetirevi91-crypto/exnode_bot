@@ -2,28 +2,21 @@ import asyncio
 import logging
 import time
 import os
-import threading
 import requests
-from flask import Flask
+from flask import Flask, request
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import CommandStart
+from aiogram.client.session.aiohttp import AiohttpSession
+from aiogram.webhook.aiohttp_server import SimpleRequestHandler
 
 # ===== НАСТРОЙКИ =====
-# Токен берется из настроек Render (Environment). В коде его нет!
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-
 PIXEL_ID = "2548037185690331"
 CAPI_TOKEN = "EAAZA8siXlGj4BTHCuThnWMuL0uJZBPZCviAZAI6HuLdDJQo46qevFfEpVwywqbFe2cvAkYZAvvBjFLvJwRHHQdweKw6r86bGgWe9rcRbYQpiLez0SPS3ainjb9dFGzSlcHxLXVcZADK0FzAFPZA1nfTDPwcWIcOfZBZBcOoeZBAYuT5WEAMPL3FkSLjNZBMvI8usgPCgQZDZD"
 CHANNEL_ID = -1004451542132
 CHANNEL_LINK = "https://letsmon.xyz/ujap9ewvblrw"
 
 logging.basicConfig(level=logging.INFO)
-
-# Проверка, что токен вообще есть
-if not BOT_TOKEN:
-    logging.error("КРИТИЧЕСКАЯ ОШИБКА: Переменная BOT_TOKEN не задана!")
-    exit(1)
-
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
@@ -61,17 +54,20 @@ async def start_handler(message: types.Message):
     else:
         await message.answer("Привет! Чтобы продолжить, подпишитесь на наш канал:\n" f"{CHANNEL_LINK}\n\n" "После подписки нажмите /start ещё раз.")
 
-# --- Веб-сервер для Render (чтобы не засыпал) ---
+# --- Flask приложение для webhook ---
 app = Flask(__name__)
 
 @app.route('/')
 def health():
     return "Bot is running", 200
 
-def run_bot():
-    asyncio.run(dp.start_polling(bot))
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    # Получаем данные от Telegram и передаем в aiogram
+    update = types.Update.model_validate(request.json, context={"bot": bot})
+    asyncio.run(dp.feed_update(bot, update))
+    return "ok", 200
 
 if __name__ == "__main__":
-    threading.Thread(target=run_bot, daemon=True).start()
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
