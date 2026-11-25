@@ -2,8 +2,9 @@ import asyncio
 import logging
 import time
 import os
+import threading
 import requests
-from flask import Flask, request
+from flask import Flask
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import CommandStart
 
@@ -17,10 +18,6 @@ CHANNEL_LINK = "https://letsmon.xyz/ujap9ewvblrw"
 logging.basicConfig(level=logging.INFO)
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
-
-# Создаем отдельный цикл событий для бота
-loop = asyncio.new_event_loop()
-asyncio.set_event_loop(loop)
 
 def send_subscribe_event(user_id: int):
     url = f"https://graph.facebook.com/v19.0/{PIXEL_ID}/events"
@@ -56,29 +53,22 @@ async def start_handler(message: types.Message):
     else:
         await message.answer("Привет! Чтобы продолжить, подпишитесь на наш канал:\n" f"{CHANNEL_LINK}\n\n" "После подписки нажмите /start ещё раз.")
 
-# --- Flask приложение для webhook ---
+# --- Веб-сервер для Render (чтобы не засыпал) ---
 app = Flask(__name__)
 
 @app.route('/')
 def health():
     return "Bot is running", 200
 
-@app.route('/webhook', methods=['POST'])
-def webhook():
-    # Получаем данные и передаем в цикл событий
-    update_data = request.json
-    update = types.Update.model_validate(update_data, context={"bot": bot})
-    
-    # Запускаем обработку в существующем цикле событий
-    future = asyncio.run_coroutine_threadsafe(
-        dp.feed_update(bot, update), 
-        loop
-    )
-    # Ждем результата, чтобы Flask вернул ответ Telegram
-    future.result()
-    
-    return "ok", 200
+def run_bot():
+    # Запускаем Long Polling в отдельном потоке
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(dp.start_polling(bot))
 
 if __name__ == "__main__":
+    # Запускаем бота в фоне
+    threading.Thread(target=run_bot, daemon=True).start()
+    # Запускаем Flask для Render
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
