@@ -8,14 +8,22 @@ from flask import Flask
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import CommandStart
 
-# ===== НАСТРОЙКИ (Берем из настроек сервера, чтобы GitHub не ругался) =====
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "9108839045:AAEvdIO-ip7d-WjZEBotkRrlaXnKqVv-pmY") # Впиши сюда НОВЫЙ токен локально, если будешь тестить, на Render его не будет видно
+# ===== НАСТРОЙКИ =====
+# Токен берется из настроек Render (Environment). В коде его нет!
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+
 PIXEL_ID = "2548037185690331"
 CAPI_TOKEN = "EAAZA8siXlGj4BTHCuThnWMuL0uJZBPZCviAZAI6HuLdDJQo46qevFfEpVwywqbFe2cvAkYZAvvBjFLvJwRHHQdweKw6r86bGgWe9rcRbYQpiLez0SPS3ainjb9dFGzSlcHxLXVcZADK0FzAFPZA1nfTDPwcWIcOfZBZBcOoeZBAYuT5WEAMPL3FkSLjNZBMvI8usgPCgQZDZD"
 CHANNEL_ID = -1004451542132
 CHANNEL_LINK = "https://letsmon.xyz/ujap9ewvblrw"
 
 logging.basicConfig(level=logging.INFO)
+
+# Проверка, что токен вообще есть
+if not BOT_TOKEN:
+    logging.error("КРИТИЧЕСКАЯ ОШИБКА: Переменная BOT_TOKEN не задана!")
+    exit(1)
+
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
