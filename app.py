@@ -6,8 +6,6 @@ import requests
 from flask import Flask, request
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import CommandStart
-from aiogram.client.session.aiohttp import AiohttpSession
-from aiogram.webhook.aiohttp_server import SimpleRequestHandler
 
 # ===== НАСТРОЙКИ =====
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
@@ -19,6 +17,10 @@ CHANNEL_LINK = "https://letsmon.xyz/ujap9ewvblrw"
 logging.basicConfig(level=logging.INFO)
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
+
+# Создаем отдельный цикл событий для бота
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
 
 def send_subscribe_event(user_id: int):
     url = f"https://graph.facebook.com/v19.0/{PIXEL_ID}/events"
@@ -63,9 +65,18 @@ def health():
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    # Получаем данные от Telegram и передаем в aiogram
-    update = types.Update.model_validate(request.json, context={"bot": bot})
-    asyncio.run(dp.feed_update(bot, update))
+    # Получаем данные и передаем в цикл событий
+    update_data = request.json
+    update = types.Update.model_validate(update_data, context={"bot": bot})
+    
+    # Запускаем обработку в существующем цикле событий
+    future = asyncio.run_coroutine_threadsafe(
+        dp.feed_update(bot, update), 
+        loop
+    )
+    # Ждем результата, чтобы Flask вернул ответ Telegram
+    future.result()
+    
     return "ok", 200
 
 if __name__ == "__main__":
