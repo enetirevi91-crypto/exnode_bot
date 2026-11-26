@@ -11,8 +11,8 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 # ===== НАСТРОЙКИ =====
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-PIXEL_ID = "4710337062579164" # <-- Новый ID
-CAPI_TOKEN = "EAAZAidD25ajgBTNxa9oZCmPmLEIo1ZC13vwH3gCHzyFXQaErgpHaHznUro82HOLsicoOnL03SH347oEZBZAaQ9RzZAaUeb1xWroWLGkiG3xawJVmOuZCrpBa7bHiIE6ANj5lojbBoniG2usJSUUYv6qVPffTZBweZBLyNbXT8Bp8x5dvn8IJysh9NjlwB4X9wRZCjL8wZDZD" # <-- Новый токен
+PIXEL_ID = "4710337062579164"
+CAPI_TOKEN = "EAAZAidD25ajgBTNxa9oZCmPmLEIo1ZC13vwH3gCHzyFXQaErgpHaHznUro82HOLsicoOnL03SH347oEZBZAaQ9RzZAaUeb1xWroWLGkiG3xawJVmOuZCrpBa7bHiIE6ANj5lojbBoniG2usJSUUYv6qVPffTZBweZBLyNbXT8Bp8x5dvn8IJysh9NjlwB4X9wRZCjL8wZDZD"
 CHANNEL_ID = -1004451542132
 CHANNEL_LINK = "https://letsmon.xyz/ujap9ewvblrw"
 
@@ -86,19 +86,21 @@ async def callback_check_sub(callback: types.CallbackQuery):
             show_alert=True
         )
 
-# --- Веб-сервер для Render ---
+# --- Веб-сервер для Render (теперь в отдельном потоке) ---
 app = Flask(__name__)
 
 @app.route('/')
 def health():
     return "Bot is running", 200
 
-def run_bot():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(dp.start_polling(bot))
+def run_flask():
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=port, use_reloader=False)
 
 if __name__ == "__main__":
-    threading.Thread(target=run_bot, daemon=True).start()
-    port = int(os.environ.get("PORT", 8080))
-    app.run(host='0.0.0.0', port=port)
+    # Flask теперь работает в фоне (чтобы Render видел порт)
+    threading.Thread(target=run_flask, daemon=True).start()
+    
+    # Бот теперь работает в ГЛАВНОМ потоке (чтобы не было ошибки set_wakeup_fd)
+    logging.info("Starting bot polling in main thread...")
+    dp.run_polling(bot)
