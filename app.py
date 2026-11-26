@@ -2,78 +2,103 @@ import asyncio
 import logging
 import time
 import os
+import threading
 import requests
 from flask import Flask
-from aiogram import Bot, Dispatcher, types
+from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import CommandStart
-import multiprocessing
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 # ===== НАСТРОЙКИ =====
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-PIXEL_ID = "2548037185690331"
-CAPI_TOKEN = "EAAZA8siXlGj4BTHCuThnWMuL0uJZBPZCviAZAI6HuLdDJQo46qevFfEpVwywqbFe2cvAkYZAvvBjFLvJwRHHQdweKw6r86bGgWe9rcRbYQpiLez0SPS3ainjb9dFGzSlcHxLXVcZADK0FzAFPZA1nfTDPwcWIcOfZBZBcOoeZBAYuT5WEAMPL3FkSLjNZBMvI8usgPCgQZDZD"
+PIXEL_ID = "4710337062579164" # <-- Новый ID
+CAPI_TOKEN = "EAAZAidD25ajgBTNxa9oZCmPmLEIo1ZC13vwH3gCHzyFXQaErgpHaHznUro82HOLsicoOnL03SH347oEZBZAaQ9RzZAaUeb1xWroWLGkiG3xawJVmOuZCrpBa7bHiIE6ANj5lojbBoniG2usJSUUYv6qVPffTZBweZBLyNbXT8Bp8x5dvn8IJysh9NjlwB4X9wRZCjL8wZDZD" # <-- Новый токен
 CHANNEL_ID = -1004451542132
 CHANNEL_LINK = "https://letsmon.xyz/ujap9ewvblrw"
 
 logging.basicConfig(level=logging.INFO)
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher()
 
-# --- Flask приложение (живет в главном процессе) ---
+def send_subscribe_event(user_id: int):
+    url = f"https://graph.facebook.com/v19.0/{PIXEL_ID}/events"
+    payload = {
+        "data": [{
+            "event_name": "Subscribe",
+            "event_time": int(time.time()),
+            "action_source": "website",
+            "user_data": {"external_id": str(user_id)}
+        }],
+        "access_token": CAPI_TOKEN
+    }
+    try:
+        r = requests.post(url, json=payload, timeout=10)
+        logging.info(f"CAPI response: {r.status_code} {r.text}")
+    except Exception as e:
+        logging.error(f"CAPI error: {e}")
+
+async def check_subscription(user_id: int) -> bool:
+    try:
+        member = await bot.get_chat_member(chat_id=CHANNEL_ID, user_id=user_id)
+        return member.status in ("member", "administrator", "creator")
+    except Exception as e:
+        logging.error(f"check_subscription error: {e}")
+        return False
+
+def get_subscribe_keyboard():
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📢 Подписаться на канал", url=CHANNEL_LINK)],
+        [InlineKeyboardButton(text="✅ Я подписался", callback_data="check_sub")]
+    ])
+    return keyboard
+
+@dp.message(CommandStart())
+async def start_handler(message: types.Message):
+    user_id = message.from_user.id
+    subscribed = await check_subscription(user_id)
+    
+    if subscribed:
+        send_subscribe_event(user_id)
+        await message.answer(
+            "Отлично! Вы уже подписаны ✅\n"
+            "Наш менеджер: @Manager_Exnode"
+        )
+    else:
+        await message.answer(
+            "Привет! Чтобы продолжить, подпишись на наш канал 👇",
+            reply_markup=get_subscribe_keyboard()
+        )
+
+@dp.callback_query(F.data == "check_sub")
+async def callback_check_sub(callback: types.CallbackQuery):
+    user_id = callback.from_user.id
+    subscribed = await check_subscription(user_id)
+    
+    if subscribed:
+        send_subscribe_event(user_id)
+        await callback.message.edit_text(
+            "Спасибо! Вы подписаны ✅\n"
+            "Наш менеджер: @Manager_Exnode"
+        )
+    else:
+        await callback.answer(
+            "Вы еще не подписались на канал! Пожалуйста, подпишитесь и нажмите кнопку снова.",
+            show_alert=True
+        )
+
+# --- Веб-сервер для Render ---
 app = Flask(__name__)
 
 @app.route('/')
 def health():
     return "Bot is running", 200
 
-# --- Функция для запуска бота (живет в дочернем процессе) ---
-def run_bot_process():
-    # В дочернем процессе создаем свой цикл событий
-    bot = Bot(token=BOT_TOKEN)
-    dp = Dispatcher()
-
-    def send_subscribe_event(user_id: int):
-        url = f"https://graph.facebook.com/v19.0/{PIXEL_ID}/events"
-        payload = {
-            "data": [{
-                "event_name": "Subscribe",
-                "event_time": int(time.time()),
-                "action_source": "website",
-                "user_data": {"external_id": str(user_id)}
-            }],
-            "access_token": CAPI_TOKEN
-        }
-        try:
-            r = requests.post(url, json=payload, timeout=10)
-            logging.info(f"CAPI response: {r.status_code} {r.text}")
-        except Exception as e:
-            logging.error(f"CAPI error: {e}")
-
-    async def check_subscription(user_id: int) -> bool:
-        try:
-            member = await bot.get_chat_member(chat_id=CHANNEL_ID, user_id=user_id)
-            return member.status in ("member", "administrator", "creator")
-        except Exception as e:
-            logging.error(f"check_subscription error: {e}")
-            return False
-
-    @dp.message(CommandStart())
-    async def start_handler(message: types.Message):
-        user_id = message.from_user.id
-        if await check_subscription(user_id):
-            send_subscribe_event(user_id)
-            await message.answer("Спасибо! Вы подписаны на канал ✅\n" f"Перейти в канал: {CHANNEL_LINK}")
-        else:
-            await message.answer("Привет! Чтобы продолжить, подпишитесь на наш канал:\n" f"{CHANNEL_LINK}\n\n" "После подписки нажмите /start ещё раз.")
-
-    async def main():
-        await dp.start_polling(bot)
-
-    asyncio.run(main())
+def run_bot():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(dp.start_polling(bot))
 
 if __name__ == "__main__":
-    # 1. Запускаем бота в отдельном процессе (а не в потоке!)
-    bot_process = multiprocessing.Process(target=run_bot_process)
-    bot_process.start()
-
-    # 2. Запускаем Flask в главном процессе
+    threading.Thread(target=run_bot, daemon=True).start()
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
