@@ -11,8 +11,8 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 # ===== НАСТРОЙКИ =====
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-PIXEL_ID = "4710337062579164"
-CAPI_TOKEN = "EAAZAidD25ajgBTNxa9oZCmPmLEIo1ZC13vwH3gCHzyFXQaErgpHaHznUro82HOLsicoOnL03SH347oEZBZAaQ9RzZAaUeb1xWroWLGkiG3xawJVmOuZCrpBa7bHiIE6ANj5lojbBoniG2usJSUUYv6qVPffTZBweZBLyNbXT8Bp8x5dvn8IJysh9NjlwB4X9wRZCjL8wZDZD"
+PIXEL_ID = "4710337062579164" # НОВЫЙ ПИКСЕЛЬ
+CAPI_TOKEN = "EAAZAidD25ajgBTNxa9oZCmPmLEIo1ZC13vwH3gCHzyFXQaErgpHaHznUro82HOLsicoOnL03SH347oEZBZAaQ9RzZAaUeb1xWroWLGkiG3xawJVmOuZCrpBa7bHiIE6ANj5lojbBoniG2usJSUUYv6qVPffTZBweZBLyNbXT8Bp8x5dvn8IJysh9NjlwB4X9wRZCjL8wZDZD" # НОВЫЙ ТОКЕН
 CHANNEL_ID = -1004451542132
 CHANNEL_LINK = "https://letsmon.xyz/ujap9ewvblrw"
 
@@ -86,7 +86,7 @@ async def callback_check_sub(callback: types.CallbackQuery):
             show_alert=True
         )
 
-# --- Веб-сервер для Render (теперь в отдельном потоке) ---
+# --- Веб-сервер для Render (работает в фоне) ---
 app = Flask(__name__)
 
 @app.route('/')
@@ -98,9 +98,9 @@ def run_flask():
     app.run(host='0.0.0.0', port=port, use_reloader=False)
 
 if __name__ == "__main__":
-    # Flask теперь работает в фоне (чтобы Render видел порт)
+    # Flask в фоне для Render
     threading.Thread(target=run_flask, daemon=True).start()
     
-    # Бот теперь работает в ГЛАВНОМ потоке (чтобы не было ошибки set_wakeup_fd)
+    # Бот в главном потоке (чтобы не было ошибки set_wakeup_fd)
     logging.info("Starting bot polling in main thread...")
     dp.run_polling(bot)
