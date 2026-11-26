@@ -11,10 +11,11 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 # ===== НАСТРОЙКИ =====
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-PIXEL_ID = "4710337062579164" # НОВЫЙ ПИКСЕЛЬ
-CAPI_TOKEN = "EAAZAidD25ajgBTNxa9oZCmPmLEIo1ZC13vwH3gCHzyFXQaErgpHaHznUro82HOLsicoOnL03SH347oEZBZAaQ9RzZAaUeb1xWroWLGkiG3xawJVmOuZCrpBa7bHiIE6ANj5lojbBoniG2usJSUUYv6qVPffTZBweZBLyNbXT8Bp8x5dvn8IJysh9NjlwB4X9wRZCjL8wZDZD" # НОВЫЙ ТОКЕН
+PIXEL_ID = "4710337062579164" 
+CAPI_TOKEN = "EAAZAidD25ajgBTNxa9oZCmPmLEIo1ZC13vwH3gCHzyFXQaErgpHaHznUro82HOLsicoOnL03SH347oEZBZAaQ9RzZAaUeb1xWroWLGkiG3xawJVmOuZCrpBa7bHiIE6ANj5lojbBoniG2usJSUUYv6qVPffTZBweZBLyNbXT8Bp8x5dvn8IJysh9NjlwB4X9wRZCjL8wZDZD"
 CHANNEL_ID = -1004451542132
 CHANNEL_LINK = "https://letsmon.xyz/ujap9ewvblrw"
+MANAGER_LINK = "https://t.me/Manager_Exnode"
 
 logging.basicConfig(level=logging.INFO)
 bot = Bot(token=BOT_TOKEN)
@@ -59,9 +60,17 @@ async def start_handler(message: types.Message):
     
     if subscribed:
         send_subscribe_event(user_id)
+        
+        # Если уже подписан, тоже даем кнопки менеджера и канала
+        success_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📢 Перейти в канал", url=CHANNEL_LINK)],
+            [InlineKeyboardButton(text="👨‍💻 Написать менеджеру", url=MANAGER_LINK)]
+        ])
+        
         await message.answer(
             "Отлично! Вы уже подписаны ✅\n"
-            "Наш менеджер: @Manager_Exnode"
+            "Теперь вы можете перейти в канал или связаться с менеджером.",
+            reply_markup=success_keyboard
         )
     else:
         await message.answer(
@@ -76,9 +85,17 @@ async def callback_check_sub(callback: types.CallbackQuery):
     
     if subscribed:
         send_subscribe_event(user_id)
+        
+        # Кнопки после успешной подписки
+        success_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📢 Перейти в канал", url=CHANNEL_LINK)],
+            [InlineKeyboardButton(text="👨‍💻 Написать менеджеру", url=MANAGER_LINK)]
+        ])
+        
         await callback.message.edit_text(
             "Спасибо! Вы подписаны ✅\n"
-            "Наш менеджер: @Manager_Exnode"
+            "Теперь вы можете перейти в канал или связаться с менеджером.",
+            reply_markup=success_keyboard
         )
     else:
         await callback.answer(
